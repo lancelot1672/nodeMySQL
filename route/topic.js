@@ -6,6 +6,16 @@ var express = require('express');
 var router = express.Router();
 var template = require('../lib/template');
 
+//mysql
+var mysql = require('mysql');
+var connection = mysql.createConnection({
+  host : 'localhost',
+  user : 'root',
+  password : '111111',
+  database : 'opentutorials'
+});
+connection.connect();
+
 router.get('/create', function(request, response){
     fs.readdir('./data', function(error, filelist){
       var title = 'WEB - create';
@@ -75,10 +85,14 @@ router.get('/create', function(request, response){
   });
   router.get('/:pageId', function(request, response){
     var title = path.parse(request.params.pageId).base;
-    console.log("pageId : " + title);
-    fs.readdir('./data', function(error, filelist){
-      fs.readFile(`./data/${title}`, function(error, description){
-        var list = template.list(filelist);
+    connection.query(`SELECT title FROM topic`, function(error, topics){
+      if (error) throw error;
+   
+      connection.query(`SELECT * FROM topic where title='${title}' `, function(error2, topic){
+        if (error2) throw error2;
+        var title = topic[0].title;
+        var description = topic[0].description;
+        var list = template.list(topics);
         var html = template.HTML(title, list,
           `<h2>${title}</h2>${description}`,
           `<a href="/topic/create">Create</a> |
@@ -86,8 +100,21 @@ router.get('/create', function(request, response){
           <a href="/topic/delete/${title}" onclick="return confirm('Are you sure you want to ${title} Page??);">Delete</a>`
         );
         response.send(html);
-      });
     });
+  });
+    // console.log("pageId : " + title);
+    // fs.readdir('./data', function(error, filelist){
+    //   fs.readFile(`./data/${title}`, function(error, description){
+    //     var list = template.list(filelist);
+    //     var html = template.HTML(title, list,
+    //       `<h2>${title}</h2>${description}`,
+    //       `<a href="/topic/create">Create</a> |
+    //        <a href="/topic/update/${title}">Update</a> | 
+    //       <a href="/topic/delete/${title}" onclick="return confirm('Are you sure you want to ${title} Page??);">Delete</a>`
+    //     );
+    //     response.send(html);
+    //   });
+    // });
   });
 
   module.exports = router;

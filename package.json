@@ -17,6 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.3",
+    "mysql": "^2.18.1",
     "sanitize-html": "^2.7.0"
   }
 }
