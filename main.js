@@ -23,15 +23,47 @@ app.use(express.urlencoded({extended : false}));
 //Route 기능으로 대체
 var topic = require('./route/topic');
 app.use('/topic', topic);
-
+app.get('/login', function(request, response){
+  var html = `
+    <html>
+    <head>
+      <title>로그인</title>
+      <meta charset="utf-8">
+    </head>
+    <body>
+      <a href="/">돌아가기</a><h3>Login</h3>
+      <form action="/login_process" method="post">
+        <p><input type="text" name="user_id" placeholder="id"></p>
+        <p><input type="password" name="user_pw" placeholder="password"></p>
+        <p><input type="submit" value="Login"> <input type="reset" value="reset"></p>
+      </form>
+    </body>
+    </html>
+  `
+  response.send(html);
+});
+app.post('/login_process', function(request, response){
+  var user_id = request.body.user_id;
+  var user_pw = request.body.user_pw;
+  
+  console.log("id : " + user_id);
+  console.log("pw : " + user_pw);
+  
+  connection.query(`select if((user_id=? and user_pw=?),'true','false') as result from member`,[user_id, user_pw],function(error, result){
+    if(error){
+      throw error;
+    }
+    console.log("value : " + result[0].result);
+  });
+});
 app.get('/', function(request, response){
-  connection.query(`SELECT title FROM topic`, function(error, topics){
+  connection.query(`SELECT title FROM topic`,function(error, topics){
     var title = 'Welcome';
     var description = 'Hello, Node.js';
     var list = template.list(topics);
     var html = template.HTML(title, list,
       `<h2>${title}</h2>${description}`,
-      `<a href="/create">Create</a>`
+      `<a href="/topic/create">Create</a>`
     );
     response.send(html);
   });
