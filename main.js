@@ -8,21 +8,28 @@ var path = require('path');
 var app = express();
 
 var session = require('express-session');
-var FileStore = require('session-file-store')(session);
+
 
 //mysql
 var db = require('./lib/db.js');
-
 
 //  body-parser || Express v4.16.0 기준으로 express.js에서 자체 제공하기 때문에 따로 import 할 필요가 없다.
 app.use(express.json());
 app.use(express.urlencoded({extended : false}));
 
+// session MySQL
+var MySQLStore = require('express-mysql-session')(session);
 app.use(session({
   secret : 'keyboard cat',
   resave: false,
   saveUninitialized: true,
-  store:new FileStore()
+  store:new MySQLStore({
+    host : 'localhost',
+    port:3306,
+    user:'root',
+    password:'111111',
+    database:'opentutorials'
+  })
 }));
 
 // passport
