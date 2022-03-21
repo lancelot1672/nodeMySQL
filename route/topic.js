@@ -5,22 +5,15 @@ var fs = require('fs');
 var express = require('express');
 var router = express.Router();
 var template = require('../lib/template');
+var authUI = require('../lib/auth');
 
 //mysql
-var mysql = require('mysql');
-const e = require('express');
-var connection = mysql.createConnection({
-  host : 'localhost',
-  user : 'root',
-  password : '111111',
-  database : 'opentutorials'
-});
-connection.connect();
+var db = require('../lib/db.js');
 
 router.get('/create', function(request, response){
-    fs.readdir('./data', function(error, filelist){
-      var title = 'WEB - create';
-      connection.query(`SELECT title FROM topic`, function(error, topics){
+    var title = 'WEB - create';
+    if(authUI.isOwner(request, response)){
+      db.query(`SELECT title FROM topic`, function(error, topics){
         var list = template.list(topics);
         var html = template.HTML(title, list, `
         <form action="/topic/create_process" method="post">
@@ -32,17 +25,19 @@ router.get('/create', function(request, response){
             <input type="submit">
           </p>
         </form>
-        `, '');
+        `, '', authUI.statusUI(request, response));
         response.send(html);
       });
-
-    });
+  }else{
+    //로그인 해야 할 수 있음.
+    response.send('<script> alert("로그인후 사용가능합니다."); history.back();</script>');
+  }
   });
   router.post('/create_process', function(request, response){
     var post = request.body;
 
   
-    connection.query(`INSERT into topic (title, description, created, author_id) VALUES(?,?, NOW(), ?)`,[post.title, post.description, 1] ,function(error, topics){
+    db.query(`INSERT into topic (title, description, created, author_id) VALUES(?,?, NOW(), ?)`,[post.title, post.description, request.user.user_id] ,function(error, topics){
       if(error){
         throw error;
       }
@@ -52,8 +47,8 @@ router.get('/create', function(request, response){
   router.get('/update/:pageId', function(request, response){
     var title = path.parse(request.params.pageId).base;
 
-    connection.query(`SELECT * FROM topic`, function(error, topics){
-      connection.query(`SELECT * FROM topic where title='${title}'`, function(error, topic){
+    db.query(`SELECT * FROM topic`, function(error, topics){
+      db.query(`SELECT * FROM topic where title='${title}'`, function(error, topic){
         var list = template.list(topics);
         var html = template.HTML(title, list,
           ``,
@@ -66,7 +61,8 @@ router.get('/create', function(request, response){
           <p>
             <input type="submit">
           </p>
-        </form>`
+        </form>`,
+        authUI.statusUI(request, response)
         );
         response.send(html);
       });
@@ -77,33 +73,43 @@ router.get('/create', function(request, response){
     var title = post.title;
     var new_title = post.new_title;
     var description = post.description;
-    //connection.query(`update topic set title='${new_title}', description='${description}' where title='${title}'`, function(error, topic){
-    connection.query(`update topic set title=?, description=? where title=?`, [new_title, description, title], function(error, topic){
+    //db.query(`update topic set title='${new_title}', description='${description}' where title='${title}'`, function(error, topic){
+    db.query(`update topic set title=?, description=? where title=?`, [new_title, description, title], function(error, topic){
       response.redirect(`/topic/${new_title}`);
     });
   });
   router.get('/delete/:pageId', function(request, response){
     var title = path.parse(request.params.pageId).base;
-    connection.query(`DELETE FROM topic where title=?`, [title], function(error, topic){
+    db.query(`DELETE FROM topic where title=?`, [title], function(error, topic){
       response.redirect(`/`);
     });
   });
   router.get('/:pageId', function(request, response){
     var title = path.parse(request.params.pageId).base;
-    connection.query(`SELECT title FROM topic`,function(error, topics){
+    db.query(`SELECT title FROM topic`,function(error, topics){
       if (error) throw error;
    
-      connection.query(`SELECT * FROM topic LEFT JOIN member ON topic.author_id = member.user_id where topic.title='${title}' `, function(error2, topic){
+      db.query(`SELECT * FROM topic LEFT JOIN member ON topic.author_id = member.user_id where topic.title='${title}' `, function(error2, topic){
         if (error2) throw error2;
         var title = topic[0].title;
         var description = topic[0].description;
         var author = topic[0].name;
+
+        var menu = `<a href="/topic/create">Create</a>`;
+
+        //자기가 쓴 글만 update, delete 가능하게 하는 기능
+        if(authUI.isOwner(request, response)){
+          if(request.user.name === author){
+            menu += ` | <a href="/topic/update/${title}">Update</a> | 
+            <a href="/topic/delete/${title}" onclick="return confirm('Are you delete you want to ${title} Page??');">Delete</a>`;
+          }
+        }
+
         var list = template.list(topics);
         var html = template.HTML(title, list,
           `<h2>${title}</h2>${description} <p>Write By <b>${author}</b></p>`,
-          `<a href="/topic/create">Create</a> |
-           <a href="/topic/update/${title}">Update</a> | 
-          <a href="/topic/delete/${title}" onclick="return confirm('Are you sure you want to ${title} Page??);">Delete</a>`
+          menu,
+          authUI.statusUI(request, response)
         );
         response.send(html);
     });
