@@ -56,20 +56,23 @@ router.post('/enroll_process', function(request, response){
     var pw2 = request.body.pw2;
     var author = request.body.author;
     var profile = request.body.profile;
-    db.query(`select count(*) as idCount from opentutorials.member where user_id=?`,[user_id],function(error, result){
-        if(error){
-          throw error;
-        }
-        console.log(result[0].idCount);
-        if(result[0].idCount === 1){
-          //이미 있는 아이디
-        }else{
-            //없는 아이디 ㄱㄱ
-            db.query(`insert into opentutorials.member (user_id, user_pw, name, profile) VALUES (?,?,?,?)`,[user_id, pw1, author, profile],function(error2, result2){
-                response.redirect('/');
-            });
-        }
-      });
-
+    db.getConnection(function(err, connection){ //Connection 연결
+      connection.query(`select count(*) as idCount from opentutorials.member where user_id=?`,[user_id],function(error, result){
+          if(error){
+            throw error;
+          }
+          console.log(result[0].idCount);
+          if(result[0].idCount === 1){
+            //이미 있는 아이디
+          }else{
+              //없는 아이디 ㄱㄱ
+              connection.query(`insert into opentutorials.member (user_id, user_pw, name, profile) VALUES (?,?,?,?)`,[user_id, pw1, author, profile],function(error2, result2){
+                  response.redirect('/');
+              });
+          }
+        });
+        connection.release(); //Connection Pool 반환
+    });
 });
-  module.exports = router;
+
+module.exports = router;

@@ -47,26 +47,6 @@ app.post('/auth/login_process', passport.authenticate('local', {
       response.redirect('/');
     })
   });
-  
-
-  // var user_id = request.body.user_id;
-  // var user_pw = request.body.user_pw;
-  
-  // console.log("id : " + user_id);
-  // console.log("pw : " + user_pw);
-  
-  // db.query(`select count(*) as idCount from opentutorials.member where user_id=? and user_pw=?`,[user_id, user_pw],function(error, result){
-  //   if(error){
-  //     throw error;
-  //   }
-  //   console.log(result[0].idCount);
-  //   if(result[0].idCount === 1){
-  //     response.redirect('/');
-  //   }else{
-  //     response.redirect('/auth/login');
-  //   }
-  // });
-//});
 
 passport.serializeUser(function(user, done){
   console.log('serializeUser : ', user.user_id);
@@ -85,25 +65,28 @@ passport.use(new LocalStrategy(
   },
   function(username, password, done){
     console.log('LocalStrategy', username, password);
-    db.query(`select count(*) as idCount from opentutorials.member where user_id=? and user_pw=?`,[username, password],function(error, result){
-    if(error){
-      throw error;
-    }
-
-    if(result[0].idCount === 1){
+    db.getConnection(function(err, connection){ //Connection 연결
+      connection.query(`select count(*) as idCount from opentutorials.member where user_id=? and user_pw=?`,[username, password],function(error, result){
       if(error){
         throw error;
       }
-      db.query(`select * from opentutorials.member where user_id=? and user_pw=?`,[username, password],function(error2, result2){
-        //passport.serializeUser에 전송
-        return done(null, result2[0]);
-      });
 
-    }else{
-      return done(null, false, {
-        message : 'Incorrect userInfo.'
-      });
-    }
+      if(result[0].idCount === 1){
+        if(error){
+          throw error;
+        }
+        db.query(`select * from opentutorials.member where user_id=? and user_pw=?`,[username, password],function(error2, result2){
+          //passport.serializeUser에 전송
+          return done(null, result2[0]);
+        });
+
+      }else{
+        return done(null, false, {
+          message : 'Incorrect userInfo.'
+        });
+      }
+    });
+    connection.release(); //Connection Pool 반환
   });
   }
 ));
@@ -119,17 +102,19 @@ app.use('/auth', auth);
 
 app.get('/', function(request, response){
   console.log('/', request.user);
-  
-  db.query(`SELECT title FROM topic`,function(error, topics){
-    var title = 'Welcome';
-    var description = 'Hello, Node.js';
-    var list = template.list(topics);
-    var html = template.HTML(title, list,
-      `<h2>${title}</h2>${description}`,
-      `<a href="/topic/create">Create</a>`,
-      authUI.statusUI(request, response)
-    );
-    response.send(html);
+  db.getConnection(function(err, connection){ //Connection 연결
+    connection.query(`SELECT title FROM topic`,function(error, topics){
+      var title = 'Welcome';
+      var description = 'Hello, Node.js';
+      var list = template.list(topics);
+      var html = template.HTML(title, list,
+        `<h2>${title}</h2>${description}`,
+        `<a href="/topic/create">Create</a>`,
+        authUI.statusUI(request, response)
+      );
+      response.send(html);
+    });
+    connection.release(); //Connection Pool 반환
   });
 });
 
